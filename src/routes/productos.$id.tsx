@@ -642,10 +642,6 @@ function ProductDetail() {
                   Gracias por compartir tu opinión.
                 </p>
               )}
-
-              <p className="mt-4 text-xs leading-relaxed text-muted-foreground">
-                Las reseñas se guardan en este navegador como demostración.
-              </p>
             </div>
 
             <div className="space-y-4">
