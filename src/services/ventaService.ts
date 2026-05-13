@@ -36,30 +36,24 @@ export type CrearVentaResponse = {
   };
 };
 
-export type VentaResumen = {
-  id: number;
-  numero_factura: string;
-  fecha_emision: string;
-  cliente_nombre: string;
-  cliente_email: string;
-  total: string;
-};
-
 // ============ SERVICIO ============
+
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3001";
 
 export const ventaService = {
   /**
-   * Crea una venta: el backend calcula IVA/retención, guarda en DB
-   * y envía la factura por correo al cliente.
+   * Crea una venta: el backend calcula IVA/retención y la guarda en DB.
+   * Devuelve el número de factura para descargar el PDF después.
    */
   crear(input: CrearVentaInput) {
     return apiClient.post<CrearVentaResponse>("/api/ventas", input);
   },
 
   /**
-   * Lista las últimas ventas (uso administrativo).
+   * Devuelve la URL pública para descargar la factura en PDF.
+   * El navegador la abre directamente.
    */
-  listar() {
-    return apiClient.get<{ ok: true; ventas: VentaResumen[] }>("/api/ventas");
+  urlPDF(numeroFactura: string): string {
+    return `${API_URL}/api/ventas/${encodeURIComponent(numeroFactura)}/pdf`;
   },
 };

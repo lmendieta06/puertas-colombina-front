@@ -5,6 +5,7 @@ import {
   Building2,
   CheckCircle2,
   CreditCard,
+  Download,
   Landmark,
   LockKeyhole,
   MapPin,
@@ -26,7 +27,7 @@ export const Route = createFileRoute("/checkout")({
       {
         name: "description",
         content:
-          "Finaliza tu pedido de Puertas Colombia con pago simulado, datos de envío y confirmación de compra.",
+          "Finaliza tu pedido de Puertas Colombia con pago simulado, datos de envío y descarga de factura.",
       },
     ],
   }),
@@ -74,6 +75,7 @@ function CheckoutPage() {
   const [orderTotal, setOrderTotal] = useState(0);
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [downloading, setDownloading] = useState(false);
 
   const shipping = subtotal > 0 ? 18000 : 0;
   const total = subtotal + shipping;
@@ -121,6 +123,33 @@ function CheckoutPage() {
     }
   };
 
+  const handleDescargarFactura = async () => {
+    setDownloading(true);
+    try {
+      const url = ventaService.urlPDF(orderNumber);
+      const res = await fetch(url);
+      if (!res.ok) throw new Error("No se pudo generar el PDF");
+
+      const blob = await res.blob();
+      const blobUrl = URL.createObjectURL(blob);
+
+      const a = document.createElement("a");
+      a.href = blobUrl;
+      a.download = `${orderNumber}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(blobUrl);
+    } catch (err) {
+      console.error("[checkout] Error descargando PDF:", err);
+      alert(
+        "No pudimos descargar la factura en este momento. Intenta de nuevo en unos segundos.",
+      );
+    } finally {
+      setDownloading(false);
+    }
+  };
+
   if (confirmed) {
     return (
       <div className="mx-auto max-w-4xl px-4 py-20 md:px-8">
@@ -136,8 +165,9 @@ function CheckoutPage() {
           <h1 className="font-display text-5xl">Gracias por tu pedido</h1>
 
           <p className="mx-auto mt-4 max-w-2xl text-muted-foreground">
-            Hemos registrado tu solicitud de compra y enviado la factura a tu correo electrónico.
-            Revisa tu bandeja de entrada (y la carpeta de spam, por si acaso).
+            Hemos registrado tu solicitud de compra. Descarga tu factura electrónica
+            haciendo clic en el botón de abajo. Te contactaremos pronto para confirmar
+            los detalles del envío.
           </p>
 
           <div className="mx-auto mt-8 max-w-md rounded-sm bg-muted p-5 text-left text-sm">
@@ -156,13 +186,27 @@ function CheckoutPage() {
           </div>
 
           <div className="mt-8 flex flex-wrap justify-center gap-3">
+            <button
+              onClick={handleDescargarFactura}
+              disabled={downloading}
+              className="inline-flex items-center justify-center gap-2 rounded-full bg-primary px-6 py-3 text-sm font-medium text-primary-foreground transition hover:opacity-90 disabled:opacity-50"
+            >
+              <Download className="h-4 w-4" />
+              {downloading ? "Generando PDF..." : "Descargar factura"}
+            </button>
+
             <Link
               to="/productos"
-              className="inline-flex items-center justify-center rounded-full bg-primary px-6 py-3 text-sm font-medium text-primary-foreground transition hover:opacity-90"
+              className="inline-flex items-center justify-center rounded-full border border-border px-6 py-3 text-sm font-medium transition hover:bg-muted"
             >
               Seguir comprando
             </Link>
           </div>
+
+          <p className="mt-6 text-xs text-muted-foreground">
+            Guarda este número de factura. Si necesitas la factura nuevamente, escríbenos
+            por WhatsApp con este número y te la reenviaremos.
+          </p>
         </div>
       </div>
     );
@@ -205,7 +249,7 @@ function CheckoutPage() {
         </h1>
         <p className="mt-4 text-muted-foreground">
           Completa tus datos de envío y selecciona un método de pago. Al confirmar
-          recibirás la factura en tu correo electrónico.
+          podrás descargar tu factura electrónica.
         </p>
       </header>
 
@@ -369,10 +413,10 @@ function CheckoutPage() {
                   <div className="min-w-0 flex-1">
                     <div className="font-medium leading-tight">{item.product.name}</div>
                     <div className="mt-1 text-xs text-muted-foreground">
-                      {item.product.ref} · Cantidad: {item.qty}
+                      {item.product.ref} · Cantidad: {item.quantity}
                     </div>
                     <div className="mt-1 text-sm font-medium">
-                      {formatPrice(item.lineTotal)}
+                      {formatPrice(item.product.price * item.quantity)}
                     </div>
                   </div>
                 </div>
