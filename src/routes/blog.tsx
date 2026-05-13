@@ -378,7 +378,7 @@ function CommentCard({ comment }: { comment: Comentario }) {
       <div className="mt-5 border-t border-border pt-4">
         <div className="font-medium">{comment.nombre}</div>
         <div className="text-xs uppercase tracking-[0.18em] text-muted-foreground">
-          {comment.ciudad} · {fecha}
+          {comment.ciudad}
         </div>
       </div>
     </article>

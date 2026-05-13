@@ -1,5 +1,5 @@
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { MouseEvent, ReactNode } from "react";
 import { useCart } from "@/context/CartContext";
 import {
@@ -14,6 +14,7 @@ import {
   Minus,
   PackageCheck,
   Plus,
+  Send,
   ShieldCheck,
   ShoppingCart,
   Star,
@@ -72,6 +73,38 @@ export const Route = createFileRoute("/productos/$id")({
   component: ProductDetail,
 });
 
+type ProductReview = {
+  id: string;
+  name: string;
+  rating: number;
+  text: string;
+  date: string;
+};
+
+const defaultReviews: ProductReview[] = [
+  {
+    id: "default-1",
+    name: "Cliente en Bogotá",
+    rating: 5,
+    text: "La pieza tiene mucho detalle y el acabado se siente artesanal. Se ve muy bien en la entrada de la casa.",
+    date: "2026-05-01",
+  },
+  {
+    id: "default-2",
+    name: "Compradora de regalo",
+    rating: 5,
+    text: "Me gustó porque no es un regalo genérico. Tiene historia, color y una identidad muy colombiana.",
+    date: "2026-05-04",
+  },
+  {
+    id: "default-3",
+    name: "Visitante en Usaquén",
+    rating: 5,
+    text: "Los diseños llaman la atención y la idea de representar puertas de Colombia es muy original.",
+    date: "2026-05-08",
+  },
+];
+
 const sizes = ["XXL", "XL", "L", "M", "S", "XS"] as const;
 
 const normalize = (value: string) =>
@@ -96,6 +129,68 @@ function ProductDetail() {
   const [zoom, setZoom] = useState<{ x: number; y: number } | null>(null);
   const { add } = useCart();
 
+  // ============ RESEÑAS POR PRODUCTO (localStorage) ============
+  const reviewsKey = `pc_reviews_${product.id}`;
+  const [reviews, setReviews] = useState<ProductReview[]>(defaultReviews);
+  const [showReviewForm, setShowReviewForm] = useState(false);
+  const [reviewRating, setReviewRating] = useState(5);
+  const [reviewSent, setReviewSent] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const saved = localStorage.getItem(reviewsKey);
+      if (saved) {
+        const parsed = JSON.parse(saved) as ProductReview[];
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setReviews(parsed);
+          return;
+        }
+      }
+    } catch {
+      // localStorage roto o JSON inválido, dejamos los defaults
+    }
+    setReviews(defaultReviews);
+  }, [reviewsKey]);
+
+  const handleReviewSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const data = new FormData(form);
+    const name = String(data.get("reviewName") || "").trim();
+    const text = String(data.get("reviewText") || "").trim();
+
+    if (!name || !text) return;
+
+    const newReview: ProductReview = {
+      id: crypto.randomUUID(),
+      name,
+      rating: reviewRating,
+      text,
+      date: new Date().toISOString().slice(0, 10),
+    };
+
+    const next = [newReview, ...reviews];
+    setReviews(next);
+    try {
+      localStorage.setItem(reviewsKey, JSON.stringify(next));
+    } catch {
+      // si localStorage está lleno o deshabilitado, no rompemos la UI
+    }
+
+    form.reset();
+    setReviewRating(5);
+    setShowReviewForm(false);
+    setReviewSent(true);
+    setTimeout(() => setReviewSent(false), 3500);
+  };
+
+  const averageRating =
+    reviews.length > 0
+      ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length
+      : 0;
+
+  // ============ TALLAS Y VARIANTES ============
   const sku = getProductSku(product);
   const materials = getProductMaterials(product);
   const availability = getProductAvailability(product);
@@ -240,14 +335,19 @@ function ProductDetail() {
 
                 <div className="mt-4 flex flex-wrap items-center gap-3 border-b border-border pb-4">
                   <div className="flex items-center gap-1 text-gold-deep">
-                    <Star className="h-4 w-4 fill-current" />
-                    <Star className="h-4 w-4 fill-current" />
-                    <Star className="h-4 w-4 fill-current" />
-                    <Star className="h-4 w-4 fill-current" />
-                    <Star className="h-4 w-4 fill-current" />
+                    {[1, 2, 3, 4, 5].map((n) => (
+                      <Star
+                        key={n}
+                        className={`h-4 w-4 ${
+                          n <= Math.round(averageRating) ? "fill-current" : "opacity-30"
+                        }`}
+                      />
+                    ))}
                   </div>
-                  <span className="text-sm font-medium">4.8</span>
-                  <span className="text-sm text-muted-foreground">18 opiniones</span>
+                  <span className="text-sm font-medium">{averageRating.toFixed(1)}</span>
+                  <span className="text-sm text-muted-foreground">
+                    {reviews.length} {reviews.length === 1 ? "opinión" : "opiniones"}
+                  </span>
                   <span className="text-sm text-muted-foreground">|</span>
                   <span className="text-sm text-muted-foreground">SKU: {sku}</span>
                 </div>
@@ -513,32 +613,116 @@ function ProductDetail() {
               <h2 className="font-display text-3xl">Opiniones de clientes</h2>
               <div className="mt-4 flex items-center gap-2">
                 <div className="flex text-gold-deep">
-                  <Star className="h-5 w-5 fill-current" />
-                  <Star className="h-5 w-5 fill-current" />
-                  <Star className="h-5 w-5 fill-current" />
-                  <Star className="h-5 w-5 fill-current" />
-                  <Star className="h-5 w-5 fill-current" />
+                  {[1, 2, 3, 4, 5].map((n) => (
+                    <Star
+                      key={n}
+                      className={`h-5 w-5 ${
+                        n <= Math.round(averageRating) ? "fill-current" : "opacity-30"
+                      }`}
+                    />
+                  ))}
                 </div>
-                <span className="font-medium">4.8 de 5</span>
+                <span className="font-medium">{averageRating.toFixed(1)} de 5</span>
               </div>
               <p className="mt-2 text-sm text-muted-foreground">
-                Basado en opiniones de clientes y visitantes del punto de venta.
+                {reviews.length} {reviews.length === 1 ? "opinión" : "opiniones"} sobre esta pieza.
+              </p>
+
+              <button
+                type="button"
+                onClick={() => setShowReviewForm((v) => !v)}
+                className="mt-5 inline-flex items-center justify-center gap-2 rounded-full border border-border px-5 py-2.5 text-sm font-medium transition hover:bg-muted"
+              >
+                <Plus className="h-4 w-4" />
+                {showReviewForm ? "Cancelar" : "Escribir reseña"}
+              </button>
+
+              {reviewSent && (
+                <p className="mt-3 text-sm text-primary">
+                  Gracias por compartir tu opinión.
+                </p>
+              )}
+
+              <p className="mt-4 text-xs leading-relaxed text-muted-foreground">
+                Las reseñas se guardan en este navegador como demostración.
               </p>
             </div>
 
             <div className="space-y-4">
-              <Review
-                name="Cliente en Bogotá"
-                text="La pieza tiene mucho detalle y el acabado se siente artesanal. Se ve muy bien en la entrada de la casa."
-              />
-              <Review
-                name="Compradora de regalo"
-                text="Me gustó porque no es un regalo genérico. Tiene historia, color y una identidad muy colombiana."
-              />
-              <Review
-                name="Visitante en Usaquén"
-                text="Los diseños llaman la atención y la idea de representar puertas de Colombia es muy original."
-              />
+              {showReviewForm && (
+                <form
+                  onSubmit={handleReviewSubmit}
+                  className="rounded-sm border border-border bg-background p-5"
+                >
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div>
+                      <label className="mb-1.5 block text-xs uppercase tracking-wider text-muted-foreground">
+                        Nombre
+                      </label>
+                      <input
+                        type="text"
+                        name="reviewName"
+                        required
+                        className="w-full rounded-sm border border-input bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="mb-1.5 block text-xs uppercase tracking-wider text-muted-foreground">
+                        Calificación
+                      </label>
+                      <div className="flex gap-1">
+                        {[1, 2, 3, 4, 5].map((value) => (
+                          <button
+                            key={value}
+                            type="button"
+                            onClick={() => setReviewRating(value)}
+                            aria-label={`${value} estrellas`}
+                            className="text-gold-deep"
+                          >
+                            <Star
+                              className={`h-6 w-6 transition ${
+                                value <= reviewRating ? "fill-current" : "opacity-30"
+                              }`}
+                            />
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mt-4">
+                    <label className="mb-1.5 block text-xs uppercase tracking-wider text-muted-foreground">
+                      Tu opinión
+                    </label>
+                    <textarea
+                      name="reviewText"
+                      rows={4}
+                      required
+                      placeholder="Cuéntanos qué te pareció esta pieza..."
+                      className="w-full rounded-sm border border-input bg-background px-3 py-2 text-sm focus:border-primary focus:outline-none"
+                    />
+                  </div>
+
+                  <button
+                    type="submit"
+                    className="mt-4 inline-flex items-center justify-center gap-2 rounded-sm bg-primary px-5 py-2.5 text-sm font-medium uppercase tracking-wider text-primary-foreground transition hover:opacity-90"
+                  >
+                    <Send className="h-4 w-4" />
+                    Publicar reseña
+                  </button>
+                </form>
+              )}
+
+              {reviews.map((r) => (
+                <Review
+                  key={r.id}
+                  name={r.name}
+                  text={r.text}
+                  rating={r.rating}
+                  date={r.date}
+                />
+              ))}
             </div>
           </div>
         </section>
@@ -663,18 +847,34 @@ function TrustBox({
   );
 }
 
-function Review({ name, text }: { name: string; text: string }) {
+function Review({
+  name,
+  text,
+  rating = 5,
+  date,
+}: {
+  name: string;
+  text: string;
+  rating?: number;
+  date?: string;
+}) {
   return (
     <article className="rounded-sm bg-muted p-4">
-      <div className="mb-2 flex items-center gap-2">
+      <div className="mb-2 flex flex-wrap items-center gap-2">
         <div className="flex text-gold-deep">
-          <Star className="h-3.5 w-3.5 fill-current" />
-          <Star className="h-3.5 w-3.5 fill-current" />
-          <Star className="h-3.5 w-3.5 fill-current" />
-          <Star className="h-3.5 w-3.5 fill-current" />
-          <Star className="h-3.5 w-3.5 fill-current" />
+          {[1, 2, 3, 4, 5].map((n) => (
+            <Star
+              key={n}
+              className={`h-3.5 w-3.5 ${
+                n <= rating ? "fill-current" : "opacity-30"
+              }`}
+            />
+          ))}
         </div>
         <span className="text-sm font-medium">{name}</span>
+        {date && (
+          <span className="text-xs text-muted-foreground">· {date}</span>
+        )}
       </div>
       <p className="text-sm leading-relaxed text-muted-foreground">{text}</p>
     </article>
