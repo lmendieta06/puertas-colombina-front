@@ -1,7 +1,7 @@
 import { MessageCircle } from "lucide-react";
 
 const whatsappUrl =
-  "https://wa.me/573216136824?text=Hola%20Puertas%20Colombia%2C%20quiero%20informaci%C3%B3n%20sobre%20sus%20productos.";
+  "https://wa.me/573193408310?text=Hola%20Puertas%20Colombia%2C%20quiero%20informaci%C3%B3n%20sobre%20sus%20productos.";
 
 export function WhatsAppButton() {
   return (
